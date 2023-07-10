@@ -1,12 +1,17 @@
-> **Note:** Please follow the [repository conventions](https://github.com/EsriDevEvents/contributor-guides/blob/main/conventions.md#conventions-for-repositories) and [slugify](https://slugify.online/) the title of your repo
+# Using Open Source Mapping Libraries with Esri's Location Services
 
-# Name of the session
+Learn how to integrate popular open source mapping libraries with ArcGIS Platform, ArcGIS Online, and ArcGIS Enterprise, including location services such as basemaps, hosted data, geocoding, and routing. The open source libraries that will be discussed are Leaflet, OpenLayers, MapLibre GL JS, and CesiumJS.
 
-[Description of the session]
+This session was presented at Esri User Conference 2023 in San Diego.
 
-## Slides and recording
+## Slides and code
 
-Most of the recordings are uploaded to [2023 Esri Developer Summit in "mediaspace.esri.com"](https://mediaspace.esri.com/channel/2023%2BEsri%2BDeveloper%2BSummit/292702072) and slides are made available at [Esri Events > Proceedings](https://www.esri.com/en-us/about/events/index/proceedings).
+This repository contains the powerpoint slides and demo app code used in the presentation. Slides are available as a PDF, while the code for each demo app is available in the following files:
+
+* *OpenLayers navigation app*: `ol-nav-app.html`
+* *MapLibre GL JS enriched vector tiles*: `ml-query-vtl.html`
+* *Esri Leaflet casino hot spots*: `leaflet-places-heatmap.html`
+* *CesiumJS spatial analysis app*: `cesium-hot-spots.html`, `auth-callback.html`
 
 ## Related sessions
 
