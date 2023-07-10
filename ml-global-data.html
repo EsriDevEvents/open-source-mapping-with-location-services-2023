@@ -1,0 +1,87 @@
+<html>
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <script src="https://unpkg.com/maplibre-gl@2.1.9/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@2.1.9/dist/maplibre-gl.css" rel="stylesheet" />
+    <title>MapLibre GL JS: Get Global Data</title>
+    <script src="https://unpkg.com/@esri/arcgis-rest-request@4.0.0/dist/bundled/request.umd.js"></script>
+    <script src="https://unpkg.com/@esri/arcgis-rest-demographics@4.0.0/dist/bundled/demographics.umd.js"></script>
+
+    <style>
+      html,
+      body,
+      #map {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        color: #323232;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="map"></div>
+
+    <script>
+
+      const apiKey = "YOUR_API_KEY";
+      const basemapEnum = "ArcGIS:Streets";
+
+      const map = new maplibregl.Map({
+        container: "map", // the id of the div element
+        style: `https://basemaps-api.arcgis.com/arcgis/rest/services/styles/${basemapEnum}?type=style&token=${apiKey}`,
+
+        zoom: 5, // starting zoom
+        center: [18.88, 47.33] // starting location [longitude, latitude]
+
+      });
+
+      const authentication = arcgisRest.ApiKeyManager.fromKey(apiKey);
+
+      map.getCanvas().style.cursor = "crosshair";
+
+      map.on("click", async (e) => {
+        // e.lngLat contains the clicked location
+
+        const response = await arcgisRest.queryDemographicData({
+          studyAreas: [
+            {
+              geometry: {
+                x: e.lngLat.lng,
+                y: e.lngLat.lat
+              }
+            }
+          ],
+          dataCollections: ["KeyGlobalFacts"],
+          authentication: authentication
+        });
+
+        let message;
+        const featureSet = response.results[0].value.FeatureSet;
+        if (featureSet.length > 0 && featureSet[0].features.length > 0) {
+          const attributes = featureSet[0].features[0].attributes;
+          message =
+            `<b>Data for a 1 mile search radius</b><br>` +
+            [
+              `Population: ${attributes.TOTPOP.toLocaleString()}`,
+              `Males: ${attributes.TOTMALES.toLocaleString()}`,
+              `Females: ${attributes.TOTFEMALES.toLocaleString()}`,
+              `Average household size: ${attributes.AVGHHSZ}`
+            ].join("<br>");
+
+        } else {
+          message = "Data not available for this location.";
+        }
+
+        const popup = new maplibregl.Popup().setHTML(message).setLngLat(e.lngLat).addTo(map);
+
+      });
+
+    </script>
+  </body>
+</html>

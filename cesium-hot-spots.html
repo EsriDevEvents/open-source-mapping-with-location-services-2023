@@ -1,0 +1,404 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <title>CesiumJS: Spatial Analysis</title>
+
+    <!-- CesiumJS -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.100/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+
+    <!-- require ArcGIS REST JS libraries from https://unpkg.com -->
+    <script src="https://unpkg.com/@esri/arcgis-rest-request@4.0.0/dist/bundled/request.umd.js"></script>
+    <script src="https://unpkg.com/@esri/arcgis-rest-feature-service@4.0.0/dist/bundled/feature-service.umd.js"></script>
+
+    <!-- Calcite -->
+
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="https://js.arcgis.com/calcite-components/1.0.0-beta.95/calcite.css"
+    />
+
+    <script
+      type="module"
+      src="https://js.arcgis.com/calcite-components/1.0.0-beta.95/calcite.esm.js"
+    ></script>
+
+    <style>
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin:0;
+        padding:0;
+      }
+
+      calcite-button {
+        margin: 5px;
+      }
+
+      .app-wrapper {
+        background-color: #ccc;
+        width:100%;
+        height:100%;
+      }
+
+      .app-container {
+        display: flex;
+        flex-direction: row;
+        width:100%;
+        height:100%;
+      }
+
+      .map-container {
+        width: 75%;
+      }
+
+      .cntrl-container {
+        width: 25%;
+        background-color: #efefef;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .cntrl-chkbox {
+        margin: 6px;
+        display: flex;
+        justify-content: center;
+      }
+    </style>
+
+    <script type="module">
+      import {
+        ArcGISIdentityManager,
+        Job,
+        JOB_STATUSES,
+      } from 'https://cdn.skypack.dev/@esri/arcgis-rest-request@4.1.1';
+
+      import { getSelf } from 'https://cdn.skypack.dev/@esri/arcgis-rest-portal';
+
+      let session = null;
+      let viewer = null;
+      let authentication = null;
+      let lastResultUrl = null;
+
+      const fillColors = {
+        'Hot Spot with 99% Confidence':'#d62f27',
+        'Hot Spot with 95% Confidence':'#ed7551',
+        'Hot Spot with 90% Confidence':'#fab984',
+        'Not Significant':'#f7f7f2',
+        'Cold Spot with 90% Confidence':'#c0ccbe',
+        'Cold Spot with 95% Confidence':'#849eba',
+        'Cold Spot with 99% Confidence':'#4575b5'
+      }
+
+      const clientId = 'YOUR_CLIENT_ID';
+      const baseMapEnum = 'ArcGIS:HumanGeography';
+      const signInLabel = "Sign in";
+
+      const acctErrorMsg =
+        "You can only access the spatial analysis service if you have an ArcGIS Online account and you use <a href='https://developers.arcgis.com/documentation/mapping-apis-and-services/security/arcgis-identity/'>ArcGIS identity</a> to authenticate requests to the service. ArcGIS Developer accounts and API keys are not supported. However, if you have an ArcGIS Developer account and would like to access the service, please contact <a href='https://www.esri.com/en-us/contact'>Esri.</a>";
+
+      const points =
+        'https://services3.arcgis.com/GVgbJbqm8hXASVYi/arcgis/rest/services/sf_traffic_parking_violations_sa_osapi/FeatureServer/0';
+
+      const sampleResults =
+        'https://services3.arcgis.com/GVgbJbqm8hXASVYi/arcgis/rest/services/sf_osapi_driveways_sidewalk_hot_spots/FeatureServer/0';
+
+      const parts = parent.document.URL.split('/')
+      const proto = parts[0]
+      const origin = parts[2]
+      const redirectUri = `${proto}//${origin}/cesiumjs/oauth/spatial-analysis/cesiumjs_callback.html`;
+
+      const cesiumAccessToken = "YOUR_ION_ACCESS_TOKEN";
+      Cesium.Ion.defaultAccessToken = cesiumAccessToken;
+
+      const addResults = (sample) => {
+        lastResultUrl = sample ? sampleResults : lastResultUrl;
+        if (lastResultUrl) {
+          if (viewer.dataSources.getByName('analysisResults').length > 0) {
+            emptyLayerSource();
+          }
+
+          arcgisRest.queryFeatures({
+            url: lastResultUrl,
+            f:"geojson",
+            where:'Gi_Bin<>0'
+        }).then((response) => {
+            console.log(response)
+            const data = Cesium.GeoJsonDataSource.load(response, {
+                stroke:Cesium.Color.fromCssColorString('#bbbbbb')
+            })
+            
+            data.then(layer => {
+                layer.name = 'analysisResults'
+                
+                const hexBins = layer.entities.values;
+
+                for (let i=0;i<hexBins.length;i++) {
+                    const bin = hexBins[i];
+
+                    bin.polygon.material = Cesium.Color.fromCssColorString(fillColors[bin.properties['Gi_Text']]);
+                    bin.polygon.extrudedHeight = (bin.properties['Gi_Bin']+4) * 100;
+                }
+
+                viewer.dataSources.add(layer);
+                
+
+            })
+        })
+
+          document.getElementById('clearResultsBtn').disabled = false;
+          document.getElementById('runAnalysisBtn').disabled = true;
+        }
+      };
+
+      const clearResults = () => {
+        if (viewer.dataSources.getByName('analysisResults').length > 0) {
+          emptyLayerSource();
+          document.getElementById('clearResultsBtn').disabled = true;
+          document.getElementById('runAnalysisBtn').disabled = false;
+          document.getElementById('resultsCBox').checked = false;
+        }
+      };
+
+      const emptyLayerSource = () => {
+        viewer.dataSources.remove(viewer.dataSources.getByName('analysisResults')[0])
+      }
+
+      const chkBoxDidChange = (evt) => {
+        evt.currentTarget.checked ? addResults(true) : clearResults();
+      };
+
+      const showAlert = (err) => {
+        document.getElementById('alert').open = true;
+        let msg = acctErrorMsg;
+        if (err.message === 'Failed: Job failed.')
+          msg = `There was an error processing this request: ${err.message}`;
+
+        document.getElementById('alertMsg').innerHTML = msg;
+      };
+
+      const runAnalysisBtnWasClicked = (evt) => {
+        document.getElementById('runAnalysisBtn').hidden = true;
+        document.getElementById('progressBar').hidden = false;
+        document.getElementById('withPopupButton').disabled = true;
+        document.getElementById('resultsCBox').disabled = true;
+        runAnalysis().then(
+          (results) => {
+            document.getElementById('runAnalysisBtn').hidden = false;
+            document.getElementById('progressBar').hidden = true;
+            document.getElementById('withPopupButton').disabled = false;
+            document.getElementById('resultsCBox').disabled = false;
+
+            lastResultUrl = results.hotSpotsResultLayer.value.url;
+            addResults(false);
+          },
+          (err) => {
+            console.log(err);
+            document.getElementById('progressBar').hidden = true;
+            document.getElementById('runAnalysisBtn').hidden = false;
+            document.getElementById('withPopupButton').disabled = false;
+            document.getElementById('resultsCBox').disabled = false;
+            showAlert(err);
+          }
+        );
+      };
+
+      const serializedSession = localStorage.getItem(
+        '__ARCGIS_REST_USER_SESSION__'
+      ); // Check to see if there is a serialized session in local storage.
+
+      if (serializedSession !== null && serializedSession !== 'undefined') {
+        session = ArcGISIdentityManager.deserialize(serializedSession);
+      }
+
+      const initMap = () => {
+        const arcGISImageTileProvider = new Cesium.ArcGisMapServerImageryProvider({
+            url : 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer',
+            enablePickFeatures: false,
+        });
+
+        const tonerImagery = new Cesium.OpenStreetMapImageryProvider({
+            url : 'https://stamen-tiles.a.ssl.fastly.net/toner-lite/',
+            fileExtension: "png",
+            credit: "Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under CC BY SA.",
+        });
+        viewer = new Cesium.Viewer("cesiumContainer", {
+            imageryProvider: tonerImagery,
+            timeline: false,
+            animation: false,
+            geocoder:false
+        });
+        viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(-122.456449,37.721988,7000),
+            orientation: {
+                pitch: Cesium.Math.toRadians(-55),
+                heading: Cesium.Math.toRadians(-5)
+            }
+        });
+
+        //add image tile layer of points
+        viewer.imageryLayers.addImageryProvider(
+        new Cesium.ArcGisMapServerImageryProvider({
+            url: "https://services3.arcgis.com/GVgbJbqm8hXASVYi/arcgis/rest/services/sf_traffic_parking_violations_image_tile/MapServer",
+            maximumLevel:16,
+        }))
+      };
+
+      const updateSessionInfo = (session) => {
+        let sessionInfo = document.getElementById('withPopupButton');
+
+        if (session) {
+          sessionInfo.innerHTML = `Sign out : ${session.username}`;
+          localStorage.setItem(
+            '__ARCGIS_REST_USER_SESSION__',
+            session.serialize()
+          );
+          initMap();
+          document.getElementById('runAnalysisBtn').disabled = false;
+        } else {
+          sessionInfo.innerHTML = signInLabel;
+          if (viewer) {
+            viewer.destroy();
+          }
+          document.getElementById('runAnalysisBtn').disabled = true;
+        }
+      };
+
+      const getAnalysisUrl = async (withAuth) => {
+        const portalSelf = await getSelf({
+          authentication: withAuth,
+        });
+
+        return portalSelf.helperServices.analysis.url;
+      };
+
+      const runAnalysis = async () => {
+
+        const analysisUrl = await getAnalysisUrl(session);
+        const operationUrl = `${analysisUrl}/FindHotSpots/submitJob`;
+        const params = {
+          analysisLayer: { url: points },
+          shapeType: 'Hexagon',
+          outputName: {
+            serviceProperties: {
+              name: `MapLibreGLJS_find_hot_spots_${new Date().getTime()}`,
+            },
+          }, //Outputs results as a hosted feature serivce.
+        };
+
+        const jobReq = await Job.submitJob({
+          url: operationUrl,
+          params: params,
+          authentication: session,
+        });
+
+        // listen to the status event to get updates every time the job status is checked.
+        jobReq.on(JOB_STATUSES.Status, (jobInfo) => {
+          console.log(jobInfo.status);
+        });
+
+        // get all the results, this will start monitoring and trigger events
+        const jobResp = await jobReq.getAllResults();
+
+        // jobResp.aggregatedLayer.value.url
+        return jobResp;
+      };
+
+      const getAuth = (evt) => {
+        // Begin an OAuth2 login using a popup.
+        if (evt.currentTarget.innerHTML === signInLabel) {
+          ArcGISIdentityManager.beginOAuth2({
+            clientId: clientId,
+            redirectUri: redirectUri,
+            popup: true,
+          })
+            .then((newSession) => {
+              // Upon a successful login, update the session with the new session.
+              session = newSession;
+              updateSessionInfo(session);
+            })
+            .catch((error) => {
+              console.log(error);
+            });
+          evt.preventDefault();
+        } else {
+          evt.preventDefault();
+          // call the signOut method to invalidate the token.
+          if (session) {
+              session.signOut().then(() => {
+              session = null; // Clear the session from memory.
+              localStorage.removeItem('__ARCGIS_REST_USER_SESSION__');
+              updateSessionInfo();
+            });
+          }
+        }
+      };
+
+      document
+        .getElementById('withPopupButton')
+        .addEventListener('click', getAuth);
+
+      document
+        .getElementById('runAnalysisBtn')
+        .addEventListener('click', runAnalysisBtnWasClicked);
+
+      document
+        .getElementById('clearResultsBtn')
+        .addEventListener('click', clearResults);
+
+      document
+        .getElementById('resultsCBox')
+        .addEventListener('calciteCheckboxChange', chkBoxDidChange);
+      
+      updateSessionInfo(session);
+      initMap();
+    </script>
+  </head>
+
+  <body>
+    <div class="app-wrapper">
+      <div class="app-container">
+        <div class="map-container" id="cesiumContainer"></div>
+        <div class="cntrl-container">
+          <calcite-button id="withPopupButton"> Sign In </calcite-button>
+
+          <calcite-button id="runAnalysisBtn" disabled>
+            Run analysis (credits)
+          </calcite-button>
+
+          <calcite-progress
+            id="progressBar"
+            label="Executing..."
+            text="Executing..."
+            type="indeterminate"
+            hidden
+          ></calcite-progress>
+
+          <calcite-button id="clearResultsBtn" appearance="outline" disabled>
+            Clear results
+          </calcite-button>
+
+          <div class="cntrl-chkbox">
+            <calcite-label layout="inline">
+              <calcite-checkbox id="resultsCBox" scale="m" disabled="false" checked="false"></calcite-checkbox>
+              Show pre-calculated analysis results
+            </calcite-label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <calcite-alert
+      id="alert"
+      color="red"
+      placement="top"
+      icon="exclamation-mark-triangle"
+    >
+      <div id="alertTitle" slot="title">Alert</div>
+      <div id="alertMsg" slot="message"></div>
+    </calcite-alert>
+  </body>
+</html>

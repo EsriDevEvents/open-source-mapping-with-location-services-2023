@@ -1,0 +1,159 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>MapLibre GL JS: Enriched Vector Tile Layer</title>
+    <style>
+      html,
+      body,
+      #map {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        color: #323232;
+      }
+      #map {
+          height: calc(100vh - 55px);
+          z-index:0;
+        }
+      .header {
+          display:flex;
+          top:0px;
+          background:#212aea;
+          width:100%;
+          height:55px;
+          z-index:1;
+          font-size:20px;
+          color:#f8f8f8;
+        }
+      .title {
+        align-self: flex-start;
+        flex: 1 1;
+        margin:15px;
+      }
+
+      .legend-container {
+        position:absolute;
+        top:75px;
+        right:25px;
+        background-color: white;
+        padding:16px;
+      }
+      .legend-title {
+        font-weight:600;
+        font-size:18px;
+      }
+      .legend-icon,.legend-entry {
+        margin: 5px 0px;
+      }
+      .legend-icon {
+        display:flex;
+        flex-direction: row;
+      }
+      #legend-gradient {
+        width:30px;
+        height:100px;
+        background: linear-gradient(#45537A,#4E6DBD,#5686FF,#96B8FE,#E6F5FA);
+      }
+      .gradient-labels{
+        height:100%;
+        padding:0px;
+        margin:0px 0px 0px 6px;
+        list-style-type: none;
+      }
+      .mid-label {
+        margin: 25.5px 0px;
+      }
+    </style>
+
+    <script src=https://unpkg.com/maplibre-gl@2.1.9/dist/maplibre-gl.js></script>
+    <link href=https://unpkg.com/maplibre-gl@2.1.9/dist/maplibre-gl.css rel="stylesheet" />
+  </head>
+
+  <body>
+    <div class="header">
+      <div class="title">LA Housing Prices: MapLibre with ArcGIS GeoEnrichment Data</div>
+    </div>
+    <div id="map"></div>
+    <div class="legend-container">
+      <span class="legend-title">Legend</span>
+      <div class="legend-entry">
+        Average Home Price (by Census Tract)
+        <div class="legend-icon">
+          <div id="legend-gradient"></div>
+          <ul class="gradient-labels">
+            <li>> $1,300,000</li>
+            <li class="mid-label">$825,000</li>
+            <li>< $500,000   </li>           
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+
+      const apiKey = "AAPK00d668efa6614988baf783deba85f6aclM-lV4VOYrvZGjVGOenLe-F22wG8GhBVFEh1X0IpdW4M5D7DBCgJSncg6lc1rQWG";
+      const basemapEnum = "ArcGIS:LightGray";
+
+      const map = new maplibregl.Map({
+        container: "map", // the id of the div element
+        style: `https://basemaps-api.arcgis.com/arcgis/rest/services/styles/${basemapEnum}?type=style&token=${apiKey}`,
+        zoom: 9.75, // starting zoom
+        center: [-118.2793,33.98] // starting location [longitude, latitude]
+      });
+
+      const layers = [{
+        id: "blocks",
+        type: "fill",
+        source: "enriched_tracts",
+        "source-layer": "EnrichedLayer",
+        paint: {
+          "fill-color": [
+            'interpolate', ['linear'], ['get', 'AVGVAL_CY'],
+            500000, ['to-color', '#E6F5FA'],
+            700000, ['to-color', '#96B8FE'],
+            900000, ['to-color',"#5686FF"],
+            1100000, ['to-color',"#4E6DBD"],
+            1300000, ['to-color', '#45537A']
+          ],
+          "fill-opacity":1,
+          "fill-outline-color":'#bcbcbc'
+        },
+      }]
+       
+      map.once("load", () => {
+
+        map.addSource("enriched_tracts", {
+          type: "vector",
+          tiles: [
+          "https://vectortileservices3.arcgis.com/GVgbJbqm8hXASVYi/arcgis/rest/services/Enriched_LACounty_2020_Census_Tracts___Home_Value/VectorTileServer/tile/{z}/{y}/{x}.pbf"
+          ]
+        });
+
+        layers.forEach((layer) => {
+            map.addLayer(layer);
+        });
+
+        const formatter = new Intl.NumberFormat('en-US', {
+          style:'currency',
+          currency:'USD',
+          minimumFractionDigits:0,
+          maximumFractionDigits:0
+        })
+
+        map.on("click","blocks", (e) => {
+          const feature = e.features[0];
+          const avgPrice = formatter.format(feature.properties.AVGVAL_CY)
+          new maplibregl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML(`<b>Average home price: ${avgPrice}</b>`)
+            .addTo(map);
+        })
+
+      });
+
+    </script>
+  </body>
+</html>

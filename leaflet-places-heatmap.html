@@ -1,0 +1,117 @@
+<html>
+    <head>
+      <meta charset="utf-8" />
+      <title>Esri Leaflet: Vegas Strip Heatmap</title>
+      <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" crossorigin="" />
+      <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js" crossorigin=""></script>
+  
+      <!-- Load Esri Leaflet from CDN -->
+      <script src="https://unpkg.com/esri-leaflet@3.0.10/dist/esri-leaflet.js"></script>
+      <script src="https://unpkg.com/esri-leaflet-vector@4.0.0/dist/esri-leaflet-vector.js" crossorigin=""></script>
+
+      <script src="https://unpkg.com/@esri/arcgis-rest-request@4.0.0/dist/bundled/request.umd.js"></script>
+      <script src="ARCGIS_REST_PLACES_PACKAGE"></script>
+
+      <style>
+        html,
+        body,
+        #map {
+          padding: 0;
+          margin: 0;
+          width: 100%;
+          font-family: Avenir Next W00, Arial, Helvetica, sans-serif;
+          font-size: 18px;
+          color: #323232;
+        }
+        #map {
+          height: calc(100vh - 55px);
+          z-index:0;
+        }
+
+        #info {
+          position:absolute;
+          top:145px;
+          left:8px;
+          background-color: white;
+          padding:8px 12px;
+        }
+
+        .header {
+          display:flex;
+          top:0px;
+          background:#212aea;
+          width:100%;
+          height:55px;
+          z-index:1;
+          font-size:20px;
+          color:#f8f8f8;
+        }
+        .title {
+          align-self: flex-start;
+          flex: 1 1;
+          margin:15px;
+        }
+      </style>
+    </head>
+<body>
+  <div class="header">
+    <div class="title">Casino Heatmap: Leaflet with the ArcGIS Places Service</div>
+  </div>
+  <div id="map"></div>
+  <div id="info"><span id="count"></span> Casinos found</div>
+  <script type="module">
+    const apiKey = "YOUR_API_KEY";
+    const authentication = arcgisRest.ApiKeyManager.fromKey(apiKey);
+
+    const map = L.map("map", {
+      maxZoom: 16 // the heatmap plugin needs some help understanding the map's maxZoom
+    }).setView([36.10867, -115.16807], 13); // 
+
+    L.esri.Vector.vectorBasemapLayer("ArcGIS:HumanGeography", {
+      apikey: apiKey
+    }).addTo(map);
+
+
+    let lastResponse = await getPlaces();
+
+    let allPlaces = lastResponse.results;
+
+    while (lastResponse.links.next) {
+      try {
+        lastResponse = await fetch(lastResponse.links.base+lastResponse.links.next)
+        lastResponse = await lastResponse.json()
+
+        allPlaces = allPlaces.concat(lastResponse.results);
+      } catch (e) {
+        console.log(e)
+        // this will throw an error when we exceed the offset limit so stop the loop
+        break;
+      }
+    }
+    console.log("Found all near point:", allPlaces.length);
+    document.getElementById("count").innerHTML = allPlaces.length;
+    //console.log(response)
+    let addressPoints = allPlaces.map((p) => {return [p.place.location.y, p.place.location.x]})
+    let heat = L.heatLayer(addressPoints).addTo(map);
+
+    async function getPlaces() {
+      let places = await arcgisRest.findPlacesWithinExtent({
+          xmin: -115.2,
+          ymin: 36.09,
+          xmax:  -115.1,
+          ymax: 36.161,
+          categoryIds: ["10008"], //"Casinos"
+          pageSize:20,
+          authentication
+      }).catch((err) => {
+        console.log(err)
+      });
+
+      return places;
+    };
+
+    
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+
+    <script type="module">
+      import { ArcGISIdentityManager } from 'https://cdn.skypack.dev/@esri/arcgis-rest-request@4.0.0';
+      const clientId = "YOUR_CLIENT_ID";
+      const redirectUri = "auth_callback.html";
+      ArcGISIdentityManager.completeOAuth2({
+        clientId,
+        redirectUri
+      })
+    </script>
+
+  </body>
+</html>
