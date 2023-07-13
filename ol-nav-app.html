@@ -42,6 +42,7 @@
             background: white;
             padding: 10px;
             border-radius: 5px;
+            opacity: 90%;
         }
 
         h4 {
@@ -138,7 +139,7 @@
 
   <body>
     <div class="header">
-        <div class="title">Navigation app: OpenLayers with the ArcGIS Routing Service & Geocoding Service</div>
+        <div class="title">Navigation app: OpenLayers with the Routing service and Geocoding service</div>
     </div>
     <div id="map"></div>
     <div id="ui-container">
@@ -155,6 +156,7 @@
     </div>
     <script>
 
+    // To run this app, you need to provide an ArcGIS API key. To learn more, go to https://developers.arcgis.com/openlayers/authentication/apikeys/
     const apiKey = "YOUR_API_KEY";
     const authentication = arcgisRest.ApiKeyManager.fromKey(apiKey);
 
@@ -164,7 +166,7 @@
         controls:[]
     });
     const view = new ol.View({
-        center: ol.proj.fromLonLat([-118.48702, 34.03618]), // Los Angeles  
+        center: ol.proj.fromLonLat([-117.1604, 32.7114]), // San Diego  
         zoom: 13
     });
     map.setView(view);
@@ -432,10 +434,9 @@
             let timeString = timeMinutes + " min";
             if (timeHours > 0) {timeString = timeHours + " hr " + timeString}
             document.getElementById("drive-time").innerHTML = timeString;
-            const directionsHTML = response.directions[0].features.map((f) => f.attributes.text).join("<br/>");
+            const directionsHTML = response.directions[0].features.map((f,i) => (i+1)+". "+f.attributes.text).join("<br/>");
             document.getElementById("directions").innerHTML = directionsHTML;
-            //document.getElementById("directions").style.display = "block";
-            //
+
 
         }).catch((error) => {
             alert("There was a problem using the routing service. See the console for details.");

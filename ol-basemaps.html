@@ -1,0 +1,129 @@
+<!--
+
+To run this demo, you need to replace 'YOUR_API_KEY' with an API key from the ArcGIS Developers dashboard.
+
+Sign up for a free account and get an API key.
+
+https://developers.arcgis.com/documentation/mapping-apis-and-services/get-started/
+
+-->
+
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>OpenLayers: Change the basemap layer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.15.1/css/ol.css" type="text/css" />
+    <script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.15.1/build/ol.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ol-mapbox-style@10.5.0/dist/olms.js"></script>
+
+    <style>
+      html,
+      body,
+      #map {
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        color: #323232;
+      }
+      #map {
+        height: calc(100vh - 55px);
+      }
+
+      #basemaps-wrapper {
+        position: absolute;
+        top: 75px;
+        right: 20px;
+      }
+      #basemaps {
+        font-size: 24px;
+        padding: 4px 8px;
+      }
+
+      .header {
+            display:flex;
+            top:0px;
+            background:#212aea;
+            width:100%;
+            height:55px;
+            z-index:1;
+            font-size:20px;
+            color:#f8f8f8;
+            }
+        .title {
+            margin:15px;
+        }
+        
+    </style>
+
+  </head>
+
+  <body>
+    <div class="header">
+      <div class="title">Display a map: OpenLayers with the Basemap styles service</div>
+  </div>
+    <div id="map"></div>
+
+    <div id="basemaps-wrapper">
+
+        <select id="basemaps">
+          <option value="arcgis/outdoor">arcgis/outdoor</option>
+          <option value="arcgis/community">arcgis/community</option>
+          <option value="arcgis/navigation">arcgis/navigation</option>
+          <option value="arcgis/streets">arcgis/streets</option>
+          <option value="arcgis/streets-relief">arcgis/streets-relief</option>
+          <option value="arcgis/imagery">arcgis/imagery</option>
+          <option value="arcgis/oceans">arcgis/oceans</option>
+          <option value="arcgis/topographic">arcgis/topographic</option>
+          <option value="arcgis/light-gray">arcgis/light-gray</option>
+          <option value="arcgis/dark-gray">arcgis/dark-gray</option>
+          <option value="arcgis/human-geography">arcgis/human-geography</option>
+          <option value="arcgis/charted-territory">arcgis/charted-territory</option>
+          <option value="arcgis/nova">arcgis/nova</option>
+          <option value="osm/standard">osm/standard</option>
+          <option value="osm/navigation">osm/navigation</option>
+          <option value="osm/streets">osm/streets</option>
+          <option value="osm/blueprint">osm/blueprint</option>
+        </select>
+
+    </div>
+
+    <script>
+
+      // To run this app, you need to provide an ArcGIS API key. To learn more, go to https://developers.arcgis.com/openlayers/authentication/apikeys/
+      const apiKey = "YOUR_API_KEY";
+
+      const map = new ol.Map({ target: "map" });
+      map.setView(
+        new ol.View({
+          center: ol.proj.fromLonLat([-118.805, 34.027]),
+          zoom: 12
+        })
+      );
+
+      const baseUrl = "https://basemapstyles-api.arcgis.com/arcgis/rest/services/styles/v2/styles";
+      const url = (style) => `${baseUrl}/${style}?token=${apiKey}`;
+
+      const setBasemap = (style) => {
+        // Clear out existing layers.
+        map.setLayerGroup(new ol.layer.Group());
+
+        // Instantiate the given basemap layer.
+        olms.apply(map, url(style));
+      };
+
+      setBasemap("arcgis/outdoor");
+
+      const basemapsSelectElement = document.querySelector("#basemaps");
+
+      basemapsSelectElement.addEventListener("change", (e) => {
+        setBasemap(e.target.value);
+      });
+
+    </script>
+
+  </body>
+</html>
