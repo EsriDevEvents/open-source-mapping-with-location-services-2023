@@ -8,6 +8,7 @@ This session was presented at Esri User Conference 2023 in San Diego.
 
 This repository contains the powerpoint slides and demo app code used in the presentation. Slides are available as a PDF, while the code for each demo app is available in the following files:
 
+* *OpenLayers basemap styles app*: `ol-basemaps.html`
 * *OpenLayers navigation app*: `ol-nav-app.html`
 * *MapLibre GL JS enriched vector tiles*: `ml-query-vtl.html`
 * *Esri Leaflet casino hot spots*: `leaflet-places-heatmap.html`
